@@ -1,19 +1,19 @@
 # MoonDreamMojo
-Moondream is a multimodal tiny language vision model with 1.6B parameters, designed to handle both text and image inputs, generating text-based outputs such as captions or responses based on the given input. Here the inference model has been entirely implemented in Mojo.
+Moondream is a multimodal tiny language vision model with 1.6B parameters, designed to handle both text and image inputs, generating text-based outputs such as captions or responses based on the given input. Here the inference model has been entirely implemented in Mojo, while pre-processing (such as tokenization) and post-processing are handled in Python.
 ## How to use the model:
-Clone the repo:
+1. Clone the repo:
 
 ```git clone https://github.com/taalhaataahir0102/MoonDreamMojo.git```
 
-Download the weights file from [here](your-link-here).
+2. Download the weights file from [here](your-link-here).
 
-Extract the weights file in the same directory.
+3. Extract the weights file in the same directory.
 
-make executable run file
+4. make executable run file
 
 ```chmod +x run.sh```
 
-Run the model using:
+5. Run the model using:
 
 ```./run.sh```
 
