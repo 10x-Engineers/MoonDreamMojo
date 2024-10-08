@@ -578,7 +578,7 @@ fn main() raises:
 
     ###################################################################################################################
     print()
-    print("Compiling Model", end = " ")
+    print("Compiling LLM", end = " ")
     
     var mypython = Python.import_module("helper")
     var tensors = load("encoder_output.maxckpt")
@@ -599,51 +599,26 @@ fn main() raises:
     fc2_lin = List[Linear] ()
 
     for i in range(0,8,1):
-        # ln_weight = numpy_to_tensor(mypython.layer_weights_text("transformer.h.0.ln.weight"))
-        # ln_bias = numpy_to_tensor(mypython.layer_weights_text("transformer.h.0.ln.bias"))
-        # ln_weight = weights.get[DType.float32]('transformer.h.'+str(i)+'.ln.weight')
-        # ln_bias = weights.get[DType.float32]('transformer.h.'+str(i)+'.ln.bias')
 
         ln_weight = numpy_to_tensor(w['transformer.h.'+str(i)+'.ln.weight'])
         ln_bias = numpy_to_tensor(w['transformer.h.'+str(i)+'.ln.bias'])
         ln.append(LayerNorm(ln_weight, ln_bias))
         print(".", end = " ")
 
-        # qkv_weight = numpy_to_tensor(mypython.layer_weights_text("transformer.h.0.mixer.Wqkv.weight"))
-        # qkv_bias = numpy_to_tensor(mypython.layer_weights_text("transformer.h.0.mixer.Wqkv.bias"))
-        # qkv_weight = weights.get[DType.float32]('transformer.h.'+str(i)+'.mixer.Wqkv.weight')
-        # qkv_bias = weights.get[DType.float32]('transformer.h.'+str(i)+'.mixer.Wqkv.bias')
-
         qkv_weight = numpy_to_tensor(w['transformer.h.'+str(i)+'.mixer.Wqkv.weight'])
         qkv_bias = numpy_to_tensor(w['transformer.h.'+str(i)+'.mixer.Wqkv.bias'])
         qkv_lin.append(Linear(qkv_weight, qkv_bias))
         print(".", end = " ")
-
-
-        # outproj_weight = numpy_to_tensor(mypython.layer_weights_text("transformer.h.0.mixer.out_proj.weight"))
-        # outproj_bias = numpy_to_tensor(mypython.layer_weights_text("transformer.h.0.mixer.out_proj.bias"))
-        # outproj_weight = weights.get[DType.float32]('transformer.h.'+str(i)+'.mixer.out_proj.weight')
-        # outproj_bias = weights.get[DType.float32]('transformer.h.'+str(i)+'.mixer.out_proj.bias')
 
         outproj_weight = numpy_to_tensor(w['transformer.h.'+str(i)+'.mixer.out_proj.weight'])
         outproj_bias = numpy_to_tensor(w['transformer.h.'+str(i)+'.mixer.out_proj.bias'])
         outproj_lin.append(Linear(outproj_weight, outproj_bias))
         print(".", end = " ")
 
-        # fc1_weight = numpy_to_tensor(mypython.layer_weights_text("transformer.h.0.mlp.fc1.weight"))
-        # fc1_bias = numpy_to_tensor(mypython.layer_weights_text("transformer.h.0.mlp.fc1.bias"))
-        # fc1_weight = weights.get[DType.float32]('transformer.h.'+str(i)+'.mlp.fc1.weight')
-        # fc1_bias = weights.get[DType.float32]('transformer.h.'+str(i)+'.mlp.fc1.bias')
-
         fc1_weight = numpy_to_tensor(w['transformer.h.'+str(i)+'.mlp.fc1.weight'])
         fc1_bias = numpy_to_tensor(w['transformer.h.'+str(i)+'.mlp.fc1.bias'])
         fc1_lin.append(Linear(fc1_weight, fc1_bias))
         print(".", end = " ")
-
-        # fc2_weight = numpy_to_tensor(mypython.layer_weights_text("transformer.h.0.mlp.fc2.weight"))
-        # fc2_bias = numpy_to_tensor(mypython.layer_weights_text("transformer.h.0.mlp.fc2.bias"))
-        # fc2_weight = weights.get[DType.float32]('transformer.h.'+str(i)+'.mlp.fc2.weight')
-        # fc2_bias = weights.get[DType.float32]('transformer.h.'+str(i)+'.mlp.fc2.bias')
 
         fc2_weight = numpy_to_tensor(w['transformer.h.'+str(i)+'.mlp.fc2.weight'])
         fc2_bias = numpy_to_tensor(w['transformer.h.'+str(i)+'.mlp.fc2.bias'])
@@ -721,13 +696,10 @@ fn main() raises:
     while(1):
         values = List[Int] ()
         print()
-        print("Running model")
-        # holla = input("Enter your question:")
+        print("Running the model")
         py_builtins = Python.import_module("builtins")
         holla = py_builtins.input("Enter you question: ")
-        print(holla)
         var question = '\n\nQuestion: '+ str(holla) +' \n\nAnswer:'
-        print("+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=")
         print(question)
         here = PythonObject()
         var input_len = 0
@@ -875,21 +847,16 @@ fn main() raises:
             lm_ln = lm_head_ln.forward(new, mean)
             lm_lin = lm_head_lin.forward(lm_ln, transpose, multiplication, addition)
             
-            print("lm_lin: \n", lm_lin)
 
             here = mypython.argmax_index(tensor_to_numpy(lm_lin))
-            print("here:", here)
+            
             values.append(here[0][0])
 
             if here[0][0] == 50256:
                 break
             input_to_layer = lm_lin
-            print("==========================================================================")
-
+            
             words +=1
-        
-        for i in range(len(values)):
-            print("values[i]: ",values[i])
         
         var np = Python.import_module("numpy")
         var np_values = np.zeros((1, len(values)), np.int32)
@@ -897,8 +864,6 @@ fn main() raises:
             for j in range(np_values.shape[1]):
                 np_values[i][j] = values[j]
         
-        print(np_values)
-
         output = mypython.decode(np_values)
         print(output)
 

@@ -391,7 +391,7 @@ fn main() raises:
     py_builtins = Python.import_module("builtins")
     var image_path = py_builtins.input("Enter image path: ")
     print(image_path)
-    print("Compiling Model", end = " ")
+    print("Compiling Vision Encoder Model", end = " ")
     # var image_path = "flower.jpeg"
     var preprocessed_image:Tensor[DType.float32] = numpy_to_tensor( mypython.image_preprocessing(image_path))
     print(".", end = " ")
@@ -451,9 +451,7 @@ fn main() raises:
     var last_fc2 = FC(last_fc2_weight, last_fc2_bias)
 
     print()
-    print("Running model")
-
-    var start = now()
+    print("Running Vision Encoder Model")
 
     var patch_embed = patch_embedding.forward(preprocessed_image,multiplication, addition, transpose, transpose_5)
     var pos_embed = patch_embed + positional_embedding
@@ -501,14 +499,11 @@ fn main() raises:
     var lg = Gelu(lfc1,tanh)
     var lfc2 = last_fc2.forward(lg,transpose, multiplication_32,addition)
 
-    print("lfc2:\n", lfc2)
     tensors = TensorDict()
     tensors.set("x", lfc2)
 
     save(tensors,"encoder_output.maxckpt")
 
-    var end = now()
-    print("total generation time: ",(end - start)/1000000000)
 
 
     
