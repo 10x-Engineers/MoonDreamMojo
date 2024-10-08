@@ -22,5 +22,9 @@ Model will ask for the input image and question.
 RAM: 16 GB
 
 Harddisk space: 10 GB
-## Sample input and outputs:
-# Tutorial:
+## Examples:
+![Alt Text](assets/flower.jpeg)
+
+Question: What is the flower wearing?
+
+Answer: The flower is wearing sunglasses.
