@@ -9,7 +9,7 @@ Moondream is a multimodal tiny language vision model with 1.6B parameters, desig
 
 3. Extract the weights file in the same directory.
 
-4. make executable run file
+4. make executable file
 
    ```chmod +x run.sh```
 
