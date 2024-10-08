@@ -3,7 +3,7 @@ Moondream is a multimodal tiny language vision model with 1.6B parameters, desig
 ## How to use the model:
 Clone the repo:
 
-``` git clone xyz```
+```git clone https://github.com/taalhaataahir0102/MoonDreamMojo.git```
 
 Download the weights file from [here](your-link-here).
 
