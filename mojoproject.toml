@@ -1,0 +1,13 @@
+[project]
+channels = ["conda-forge", "https://conda.modular.com/max"]
+description = "Add a short description here"
+name = "moondream"
+platforms = ["linux-64"]
+version = "0.1.0"
+
+[tasks]
+
+[dependencies]
+max = ">=24.5.0,<25"
+pip = ">=24.2,<25"
+python = ">=3.12.5,<4"
