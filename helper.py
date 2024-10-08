@@ -101,32 +101,3 @@ def decode(output_ids):
     tokenizer = AutoTokenizer.from_pretrained(model_id, revision=revision)
     output_ids_tensor = torch.tensor(output_ids)
     return tokenizer.batch_decode(output_ids_tensor, skip_special_tokens=True)
-
-# def load_model_weights_and_inspect():
-#     # Load the model weights
-#     state_dict = torch.load(r'./text_model_weights.pth', map_location=torch.device('cpu'))
-    
-#     # Iterate through the state_dict and print the weight and bias shapes
-#     print("\nLayer details (name: shape):\n")
-#     for name, param in state_dict.items():
-#         if 'weight' in name:
-#             weight_shape = param.shape
-#             bias_shape = None  # Initialize bias shape as None
-#             bias_name = name.replace("weight", "bias")  # Corresponding bias name
-            
-#             # Check if the corresponding bias exists
-#             if bias_name in state_dict:
-#                 bias_shape = state_dict[bias_name].shape
-
-#             # Print layer name and weight shape
-#             print(f"{name}: {weight_shape}")
-            
-#             # Print bias shape if it exists, otherwise indicate no bias
-#             if bias_shape is not None:
-#                 print(f"{bias_name}: {bias_shape}")
-#             else:
-#                 print(f"{bias_name}: No bias")
-
-#             print()  # Blank line for readability
-
-# load_model_weights_and_inspect()
