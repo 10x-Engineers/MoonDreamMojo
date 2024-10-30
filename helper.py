@@ -27,7 +27,7 @@ def preprocess(image: PIL.Image.Image):
 
 def image_preprocessing(img_path):
     image = Image.open(img_path)
-    image.show()
+    # image.show()
     im = image
     im = preprocess(im.convert("RGB"))
     resized_image = F.interpolate(im.unsqueeze(0), size=(378, 378), mode="bilinear")
