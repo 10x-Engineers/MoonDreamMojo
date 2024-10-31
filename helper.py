@@ -95,6 +95,14 @@ def h18_state_dict():
 def argmax_index(logits):
     return np.argmax(logits, axis=-1)
 
+def sample_with_temperature(logits, temperature=1.0):
+    # Adjust logits by temperature
+    logits = logits / temperature
+    # Convert logits to probabilities
+    probs = np.exp(logits) / np.sum(np.exp(logits), axis=-1, keepdims=True)
+    # Sample from the probability distribution
+    return np.random.choice(len(probs), p=probs)
+
 def decode(output_ids):
     model_id = "vikhyatk/moondream2"
     revision = "2024-08-26"

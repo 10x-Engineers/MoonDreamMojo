@@ -239,90 +239,66 @@ struct RotPosEmb(CollectionElement):
         self.sin = existing.sin^
         self.pos_ids = existing.pos_ids^
     
-    fn forward(self, q:Tensor[DType.float32], k:Tensor[DType.float32], layer:Int, model:Model, wtf1:Model, session:engine.InferenceSession)
-               raises ->List[Tensor[DType.float32]]:
-        if layer == 0:
-            new_cos = self.cos
-            new_cos = new_cos.reshape((1,1,self.pos_ids.shape()[1],self.cos.shape()[1]))
-            new_sin = self.sin
-            new_sin = new_sin.reshape((1,1,self.pos_ids.shape()[1],self.cos.shape()[1]))
+    fn forward(self, inout q:Tensor[DType.float32], inout k:Tensor[DType.float32], model:Model, 
+               session:engine.InferenceSession) raises -> List[Tensor[DType.float32]]:
+        new_cos = self.cos
+        new_cos = new_cos.reshape((1,1,self.pos_ids.shape()[1],self.cos.shape()[1]))
+        new_sin = self.sin
+        new_sin = new_sin.reshape((1,1,self.pos_ids.shape()[1],self.cos.shape()[1]))
 
-            rotate_half_q_x1 = Tensor[DType.float32] (q.shape()[0], q.shape()[1], q.shape()[2], int(q.shape()[3] // 2))
-            rotate_half_q_x2 = Tensor[DType.float32] (q.shape()[0], q.shape()[1], q.shape()[2], int(q.shape()[3] // 2))
-            rotate_half_k_x1 = Tensor[DType.float32] (k.shape()[0], k.shape()[1], k.shape()[2], int(k.shape()[3] // 2))
-            rotate_half_k_x2 = Tensor[DType.float32] (k.shape()[0], k.shape()[1], k.shape()[2], int(k.shape()[3] // 2))
-            for b in range(rotate_half_q_x1.shape()[0]):
-                for h in range(rotate_half_q_x1.shape()[1]):
-                    for i in range(rotate_half_q_x1.shape()[2]):
-                        # Vectorized loading of the first half
-                        rotate_half_q_x1.store(Index(b, h, i, 0), q.load[width=16](Index(b, h, i, 0)))
-                        rotate_half_k_x1.store(Index(b, h, i, 0), k.load[width=16](Index(b, h, i, 0)))                        
-                        # Vectorized loading of the second half with negation
-                        rotate_half_q_x2.store(Index(b, h, i, 0), -1 * q.load[width=16](Index(b, h, i, 16)))
-                        rotate_half_k_x2.store(Index(b, h, i, 0), -1 * k.load[width=16](Index(b, h, i, 16)))
-            
-            rotate_half_q_out = Tensor[DType.float32] (rotate_half_q_x1.shape()[0], rotate_half_q_x1.shape()[1], 
-                                rotate_half_q_x1.shape()[2], rotate_half_q_x1.shape()[3] + rotate_half_q_x2.shape()[3])
-            rotate_half_k_out = Tensor[DType.float32] (rotate_half_k_x1.shape()[0], rotate_half_k_x1.shape()[1], 
-                                rotate_half_k_x1.shape()[2], rotate_half_k_x1.shape()[3] + rotate_half_k_x2.shape()[3])
-            for b in range(rotate_half_q_x1.shape()[0]):
-                for h in range(rotate_half_q_x1.shape()[1]):
-                    for i in range(rotate_half_q_x1.shape()[2]):
-                        # Vectorized storing of the first half: -x2
-                        rotate_half_q_out.store(Index(b, h, i, 0), rotate_half_q_x2.load[width=16](Index(b, h, i, 0)))
-                        rotate_half_k_out.store(Index(b, h, i, 0), rotate_half_k_x2.load[width=16](Index(b, h, i, 0)))
-                        # Vectorized storing of the second half: x1
-                        rotate_half_q_out.store(Index(b, h, i, rotate_half_q_x1.shape()[3]), 
-                                                rotate_half_q_x1.load[width=16](Index(b, h, i, 0)))
-                        rotate_half_k_out.store(Index(b, h, i, rotate_half_k_x1.shape()[3]), 
-                                                rotate_half_k_x1.load[width=16](Index(b, h, i, 0)))
-
-            var inputs_to_tm_x = session.new_tensor_map()
-            inputs_to_tm_x.borrow("input0", q)
-            inputs_to_tm_x.borrow("input1", k)
-            inputs_to_tm_x.borrow("input2", new_cos)
-            inputs_to_tm_x.borrow("input3", new_sin)
-            inputs_to_tm_x.borrow("input4", rotate_half_q_out)
-            inputs_to_tm_x.borrow("input5", rotate_half_k_out)
-
-            results = model.execute(inputs_to_tm_x)
-            q_embed = results.get[DType.float32]("output0")
-            k_embed = results.get[DType.float32]("output1")
-
-            print(q.shape(), k.shape(), new_cos.shape(), new_sin.shape(), rotate_half_q_out.shape(), rotate_half_k_out.shape())
-
-            embs = List[Tensor[DType.float32]] ()
-            embs.append(q_embed)
-            embs.append(k_embed)
-            return embs
+        rotate_half_q_x1 = Tensor[DType.float32] (q.shape()[0], q.shape()[1], q.shape()[2], int(q.shape()[3] // 2))
+        rotate_half_q_x2 = Tensor[DType.float32] (q.shape()[0], q.shape()[1], q.shape()[2], int(q.shape()[3] // 2))
+        rotate_half_k_x1 = Tensor[DType.float32] (k.shape()[0], k.shape()[1], k.shape()[2], int(k.shape()[3] // 2))
+        rotate_half_k_x2 = Tensor[DType.float32] (k.shape()[0], k.shape()[1], k.shape()[2], int(k.shape()[3] // 2))
+        for b in range(rotate_half_q_x1.shape()[0]):
+            for h in range(rotate_half_q_x1.shape()[1]):
+                for i in range(rotate_half_q_x1.shape()[2]):
+                    # Vectorized loading of the first half
+                    rotate_half_q_x1.store(Index(b, h, i, 0), q.load[width=16](Index(b, h, i, 0)))
+                    rotate_half_k_x1.store(Index(b, h, i, 0), k.load[width=16](Index(b, h, i, 0)))                        
+                    # Vectorized loading of the second half with negation
+                    rotate_half_q_x2.store(Index(b, h, i, 0), -1 * q.load[width=16](Index(b, h, i, 16)))
+                    rotate_half_k_x2.store(Index(b, h, i, 0), -1 * k.load[width=16](Index(b, h, i, 16)))
         
-        else:
-            new_cos = Tensor[DType.float32] (self.pos_ids.shape()[0], self.pos_ids.shape()[1], self.cos.shape()[1])
-            new_sin = Tensor[DType.float32] (self.pos_ids.shape()[0], self.pos_ids.shape()[1], self.cos.shape()[1])
-            for i in range(new_cos.shape()[0]):
-                for j in range(new_cos.shape()[1]):
-                    pos_id = self.pos_ids[i, j]
-                    for k in range(0, new_cos.shape()[2], num_attention_heads):
-                        new_cos.store(Index(i, j, k), self.cos.load[width=num_attention_heads](Index(pos_id, k)))
-                        new_sin.store(Index(i, j, k), self.sin.load[width=num_attention_heads](Index(pos_id, k)))
-            new_cos = new_cos.reshape((1,self.pos_ids.shape()[0], self.pos_ids.shape()[1], self.cos.shape()[1]))
-            new_sin = new_sin.reshape((1,self.pos_ids.shape()[0], self.pos_ids.shape()[1], self.cos.shape()[1]))
+        rotate_half_q_out = Tensor[DType.float32] (rotate_half_q_x1.shape()[0], rotate_half_q_x1.shape()[1], 
+                            rotate_half_q_x1.shape()[2], rotate_half_q_x1.shape()[3] + rotate_half_q_x2.shape()[3])
+        rotate_half_k_out = Tensor[DType.float32] (rotate_half_k_x1.shape()[0], rotate_half_k_x1.shape()[1], 
+                            rotate_half_k_x1.shape()[2], rotate_half_k_x1.shape()[3] + rotate_half_k_x2.shape()[3])
+        for b in range(rotate_half_q_x1.shape()[0]):
+            for h in range(rotate_half_q_x1.shape()[1]):
+                for i in range(rotate_half_q_x1.shape()[2]):
+                    # Vectorized storing of the first half: -x2
+                    rotate_half_q_out.store(Index(b, h, i, 0), rotate_half_q_x2.load[width=16](Index(b, h, i, 0)))
+                    rotate_half_k_out.store(Index(b, h, i, 0), rotate_half_k_x2.load[width=16](Index(b, h, i, 0)))
+                    # Vectorized storing of the second half: x1
+                    rotate_half_q_out.store(Index(b, h, i, rotate_half_q_x1.shape()[3]), 
+                                            rotate_half_q_x1.load[width=16](Index(b, h, i, 0)))
+                    rotate_half_k_out.store(Index(b, h, i, rotate_half_k_x1.shape()[3]), 
+                                            rotate_half_k_x1.load[width=16](Index(b, h, i, 0)))
 
+        var inputs_to_tm_x = session.new_tensor_map()
+        inputs_to_tm_x.borrow("input0", q)
+        inputs_to_tm_x.borrow("input1", k)
+        inputs_to_tm_x.borrow("input2", new_cos)
+        inputs_to_tm_x.borrow("input3", new_sin)
+        inputs_to_tm_x.borrow("input4", rotate_half_q_out)
+        inputs_to_tm_x.borrow("input5", rotate_half_k_out)
 
-            var inputs_to_tm = session.new_tensor_map()
-            inputs_to_tm.borrow("input0", q)
-            inputs_to_tm.borrow("input1", k)
-            inputs_to_tm.borrow("input2", new_cos)
-            inputs_to_tm.borrow("input3", new_sin)
-            results = wtf1.execute(inputs_to_tm)
-            q_embed = results.get[DType.float32]("output0")
-            k_embed = results.get[DType.float32]("output1")
+        results = model.execute(inputs_to_tm_x)
+        q_embed = results.get[DType.float32]("output0")
+        k_embed = results.get[DType.float32]("output1")
 
-            print(q.shape(), k.shape(), new_cos.shape(), new_sin.shape())
-            embs = List[Tensor[DType.float32]] ()
-            embs.append(q_embed)
-            embs.append(k_embed)
-            return embs
+        q[0] = q[0]
+        k[0] = k[0]
+        new_cos[0] = new_cos[0]
+        new_sin[0] = new_sin[0]
+        rotate_half_q_out[0] = rotate_half_q_out[0]
+        rotate_half_k_out[0] = rotate_half_k_out[0]
+
+        embs = List[Tensor[DType.float32]] ()
+        embs.append(q_embed)
+        embs.append(k_embed)
+        return embs
 
 fn main() raises:
     print("Compiling Graphs", end = " ")
@@ -373,7 +349,8 @@ fn main() raises:
     var concat_graph = session.load(concat_)
     print(".", end = " ")
 
-    var xyz_0 = Graph(in_types=List[Type](TensorType(DType.float32, 1, 32, "x", 64), TensorType(DType.float32, 1, 32, "x", 64), 
+    var xyz_0 = Graph(in_types=List[Type](TensorType(DType.float32, 1, 32, "x", 64), 
+                                        TensorType(DType.float32, 1, 32, "x", 64), 
                                         TensorType(DType.float32, 1, 32, "x", 64), TensorType(DType.float32, "x", "x")))
     var key_transposed_0 = ops.transpose(xyz_0[1],-2,-1)
     var mul_0 = xyz_0[0] @ key_transposed_0
@@ -472,7 +449,6 @@ fn main() raises:
 
     var weight_t = ops.transpose(start_[3],-1,-2)
     var multiply_mat = layer_norm @ weight_t
-    # var qkv_linear_out = (multiply_mat + start_[4]).reshape(1,1,6144)
     var qkv_linear_out = (multiply_mat + start_[4])
     var query = qkv_linear_out[0:1, 0:1, 0:2048].reshape(1, 1, num_attention_heads, head_dim)
     var key = qkv_linear_out[0:1, 0:1, 2048:4096].reshape(1, 1, num_attention_heads, head_dim)
@@ -540,8 +516,10 @@ fn main() raises:
     dms.append("x")
     dms.append(32)
 
-    var rot_pos_emb_1 = Graph(in_types=List[Type](TensorType(DType.float32, 1, 32, 1, 32), TensorType(DType.float32,1, 32, 1, 32), 
-                                           TensorType(DType.float32, 1, 1, "x", 32), TensorType(DType.float32, 1, 1, "x", 32)))
+    var rot_pos_emb_1 = Graph(in_types=List[Type](TensorType(DType.float32, 1, 32, 1, 32), 
+                                                  TensorType(DType.float32,1, 32, 1, 32), 
+                                                  TensorType(DType.float32, 1, 1, "x", 32), 
+                                                  TensorType(DType.float32, 1, 1, "x", 32)))
     var first_half_q1 = rot_pos_emb_1[0][0:1, 0:32, 0:1, 0:16]
     var first_half_k1 = rot_pos_emb_1[1][0:1, 0:32, 0:1, 0:16]
     var second_half_q1 = rot_pos_emb_1[0][0:1, 0:32, 0:1, 16:32] * -1
@@ -562,9 +540,10 @@ fn main() raises:
     var wtf1 = session.load(rot_pos_emb_1)
     print(".", end = " ")
 
-    var rot_pos_emb_0 = Graph(in_types=List[Type](TensorType(DType.float32, 1, 32, "x", 32), TensorType(DType.float32,1, 32, "x", 32), 
-                                           TensorType(DType.float32, 1, 1, "x", 32), TensorType(DType.float32, 1, 1, "x", 32), 
-                                           TensorType(DType.float32, 1, 32, "x", 32), TensorType(DType.float32,1, 32, "x", 32))) 
+    var rot_pos_emb_0 = Graph(in_types=List[Type](TensorType(DType.float32, 1, 32, "x", 32), 
+                                        TensorType(DType.float32,1, 32, "x", 32), TensorType(DType.float32, 1, 1, "x", 32), 
+                                        TensorType(DType.float32, 1, 1, "x", 32), TensorType(DType.float32, 1, 32, "x", 32), 
+                                        TensorType(DType.float32,1, 32, "x", 32))) 
     var new_cos_20 = ops.broadcast_to(rot_pos_emb_0[2], dms)
     var new_sin_20 = ops.broadcast_to(rot_pos_emb_0[3], dms)
     var q_embed0 = (rot_pos_emb_0[0] * new_cos_20) + (rot_pos_emb_0[4] * new_sin_20)
@@ -692,7 +671,7 @@ fn main() raises:
 
     emb_matrix = w['transformer.embd.wte.weight']
 
-    w.__del__()
+    # w.__del__()
 
     while(1):
         values = List[Int] ()
@@ -771,8 +750,12 @@ fn main() raises:
                     key_pass = results.get[DType.float32]("output4")
                     ln_out = results.get[DType.float32]("output5")
 
-                    print(input_to_layer.shape(), ln[i].w.shape(), ln[i].b.shape(), qkv_lin[i].w.shape(), qkv_lin[i].b.shape())
-
+                    input_to_layer[0] = input_to_layer[0]
+                    ln[i].w[0] = ln[i].w[0]
+                    ln[i].b[0] = ln[i].b[0]
+                    qkv_lin[i].w[0] = qkv_lin[i].w[0]
+                    qkv_lin[i].b[0] = qkv_lin[i].b[0]
+                    
                     bsz = ln_out.shape()[0]
                     q_len = ln_out.shape()[1]
 
@@ -784,61 +767,66 @@ fn main() raises:
 
                 if words == 0:
                     rot_pos_emb = RotPosEmb(cos, sin, position_ids)
-                    embs = rot_pos_emb.forward(query_rot, key_rot, words, wtf0, wtf1, session)
-                    query_rot = embs[0]
-                    key_rot = embs[1]
+                    embs = rot_pos_emb.forward(query_rot, key_rot, wtf0, session)
+                    query_rot1 = embs[0]
+                    key_rot1 = embs[1]
                 else:
-                    rot_pos_emb = RotPosEmb(cos, sin, position_ids)
-                    embs = rot_pos_emb.forward(query_rot, key_rot, words, wtf0, wtf1, session)
-                    query_rot = embs[0]
-                    key_rot = embs[1]
-                    # new_cos = Tensor[DType.float32] (position_ids.shape()[0], position_ids.shape()[1], cos.shape()[1])
-                    # new_sin = Tensor[DType.float32] (position_ids.shape()[0], position_ids.shape()[1], cos.shape()[1])
-                    # for i in range(new_cos.shape()[0]):
-                    #     for j in range(new_cos.shape()[1]):
-                    #         pos_id = position_ids[i, j]
-                    #         for k in range(0, new_cos.shape()[2], num_attention_heads):
-                    #             new_cos.store(Index(i, j, k), cos.load[width=num_attention_heads](Index(pos_id, k)))
-                    #             new_sin.store(Index(i, j, k), sin.load[width=num_attention_heads](Index(pos_id, k)))
-                    # new_cos = new_cos.reshape((1,position_ids.shape()[0], position_ids.shape()[1], cos.shape()[1]))
-                    # new_sin = new_sin.reshape((1,position_ids.shape()[0], position_ids.shape()[1], cos.shape()[1]))
+                    new_cos = Tensor[DType.float32] (position_ids.shape()[0], position_ids.shape()[1], cos.shape()[1])
+                    new_sin = Tensor[DType.float32] (position_ids.shape()[0], position_ids.shape()[1], cos.shape()[1])
+                    for i in range(new_cos.shape()[0]):
+                        for j in range(new_cos.shape()[1]):
+                            pos_id = position_ids[i, j]
+                            for k in range(0, new_cos.shape()[2], num_attention_heads):
+                                new_cos.store(Index(i, j, k), cos.load[width=num_attention_heads](Index(pos_id, k)))
+                                new_sin.store(Index(i, j, k), sin.load[width=num_attention_heads](Index(pos_id, k)))
+                    new_cos = new_cos.reshape((1,position_ids.shape()[0], position_ids.shape()[1], cos.shape()[1]))
+                    new_sin = new_sin.reshape((1,position_ids.shape()[0], position_ids.shape()[1], cos.shape()[1]))
 
-                    # var inputs_to_tm_y = session.new_tensor_map()
-                    # inputs_to_tm_y.borrow("input0", query_rot)
-                    # inputs_to_tm_y.borrow("input1", key_rot)
-                    # inputs_to_tm_y.borrow("input2", new_cos)
-                    # inputs_to_tm_y.borrow("input3", new_sin)
-                    # results = wtf1.execute(inputs_to_tm_y)
-                    # query_rot = results.get[DType.float32]("output0")
-                    # key_rot = results.get[DType.float32]("output1")
+                    var inputs_to_tm = session.new_tensor_map()
+                    inputs_to_tm.borrow("input0", query_rot)
+                    inputs_to_tm.borrow("input1", key_rot)
+                    inputs_to_tm.borrow("input2", new_cos)
+                    inputs_to_tm.borrow("input3", new_sin)
+                    results = wtf1.execute(inputs_to_tm)
+                    query_rot1 = results.get[DType.float32]("output0")
+                    key_rot1 = results.get[DType.float32]("output1")
 
-                    # print(query_rot.shape(), key_rot.shape(), new_cos.shape(), new_sin.shape())
+                    query_rot[0] = query_rot[0]
+                    key_rot[0] = key_rot[0]
+                    new_cos[0] = new_cos[0]
+                    new_sin[0] = new_sin[0]
 
-                new_query_states = Tensor[DType.float32] (query_pass.shape()[0], query_pass.shape()[1], query_pass.shape()[2], 
-                                                        query_pass.shape()[3]+query_rot.shape()[3])
+
+                new_query_states = Tensor[DType.float32] (query_pass.shape()[0], query_pass.shape()[1], 
+                                                    query_pass.shape()[2], query_pass.shape()[3]+query_rot1.shape()[3])
                 new_key_states = Tensor[DType.float32] (key_pass.shape()[0], key_pass.shape()[1], key_pass.shape()[2], 
-                                                        key_pass.shape()[3]+key_rot.shape()[3])
+                                                        key_pass.shape()[3]+key_rot1.shape()[3])
                 if words == 0:
-                    for i in range(query_rot.shape()[0]):
-                        for j in range(query_rot.shape()[1]):
-                            for k in range(query_rot.shape()[2]):
-                                for l in range(0, query_rot.shape()[3], 32):
-                                    new_query_states.store(Index(i, j, k, l), query_rot.load[width=32](Index(i, j, k, l)))
-                                    new_query_states.store(Index(i, j, k, l + query_rot.shape()[3]), query_pass.load[width=32](Index(i, j, k, l)))
-                                    new_key_states.store(Index(i, j, k, l), key_rot.load[width=32](Index(i, j, k, l)))
-                                    new_key_states.store(Index(i, j, k, l + key_rot.shape()[3]), key_pass.load[width=32](Index(i, j, k, l)))
+                    for i in range(query_rot1.shape()[0]):
+                        for j in range(query_rot1.shape()[1]):
+                            for k in range(query_rot1.shape()[2]):
+                                for l in range(0, query_rot1.shape()[3], 32):
+                                    new_query_states.store(Index(i, j, k, l), query_rot1.load[width=32](Index(i, j, k, l)))
+                                    new_query_states.store(Index(i, j, k, l + query_rot1.shape()[3]), 
+                                                            query_pass.load[width=32](Index(i, j, k, l)))
+                                    new_key_states.store(Index(i, j, k, l), key_rot1.load[width=32](Index(i, j, k, l)))
+                                    new_key_states.store(Index(i, j, k, l + key_rot1.shape()[3]), 
+                                                            key_pass.load[width=32](Index(i, j, k, l)))
                 else:
                     var inputs_to_tm5 = session.new_tensor_map()
-                    inputs_to_tm5.borrow("input0", query_rot)
+                    inputs_to_tm5.borrow("input0", query_rot1)
                     inputs_to_tm5.borrow("input1", query_pass)
-                    inputs_to_tm5.borrow("input2", key_rot)
+                    inputs_to_tm5.borrow("input2", key_rot1)
                     inputs_to_tm5.borrow("input3", key_pass)
 
                     results = concat_graph.execute(inputs_to_tm5)
                     new_query_states = results.get[DType.float32]("output0")
                     new_key_states = results.get[DType.float32]("output1")
 
-                    print(query_rot.shape(), query_pass.shape(), key_rot.shape(),  key_pass.shape())
+                    query_rot1[0] = query_rot1[0]
+                    query_pass[0] = query_pass[0]
+                    key_rot1[0] = key_rot1[0]
+                    key_pass[0] = key_pass[0]
 
                 if words == 0:
                     past_key_states.append(new_key_states)
@@ -847,9 +835,10 @@ fn main() raises:
                     new_tens_keys = Tensor[DType.float32] (past_key_states[i].shape()[0], past_key_states[i].shape()[1],
                                                     past_key_states[i].shape()[2] + new_key_states.shape()[2], 
                                                     past_key_states[i].shape()[3])
-                    new_tens_values = Tensor[DType.float32] (past_value_states[i].shape()[0], past_value_states[i].shape()[1],
-                                                    past_value_states[i].shape()[2] + value_states.shape()[2], 
-                                                    past_value_states[i].shape()[3])
+                    new_tens_values = Tensor[DType.float32] (past_value_states[i].shape()[0], 
+                                                            past_value_states[i].shape()[1],
+                                                            past_value_states[i].shape()[2] + value_states.shape()[2], 
+                                                            past_value_states[i].shape()[3])
                     for w in range(new_tens_keys.shape()[0]):
                         for x in range(new_tens_keys.shape()[1]):
                             for y in range(new_tens_keys.shape()[2]):
@@ -886,7 +875,11 @@ fn main() raises:
                     
                     results = xyz_0_graph.execute(inputs_to_tm)
                     var attn_output_t = results.get[DType.float32]("output0")
-                    print(new_query_states.shape(), new_key_states.shape(), value_states.shape(), attn_bias.shape())
+
+                    new_query_states[0] = new_query_states[0]
+                    new_key_states[0] = new_key_states[0]
+                    value_states[0] = value_states[0]
+                    attn_bias[0] = attn_bias[0]
 
                     attn_output_r = attn_output_t.reshape((bsz, q_len, hidden_size))
                     
@@ -903,9 +896,17 @@ fn main() raises:
 
                     results = xyz2_0_graph.execute(inputs_to_tm2)
                     hidden_states = results.get[DType.float32]("output0")
+                    
 
-                    print(attn_output_r.shape(), ln_out.shape(), outproj_lin[i].w.shape(), outproj_lin[i].b.shape(),
-                          fc1_lin[i].w.shape(), fc1_lin[i].b.shape(), fc2_lin[i].w.shape(), fc2_lin[i].b.shape(), residual.shape())
+                    attn_output_r[0] = attn_output_r[0]
+                    ln_out[0] = ln_out[0]
+                    outproj_lin[i].w[0] = outproj_lin[i].w[0]
+                    outproj_lin[i].b[0] = outproj_lin[i].b[0]
+                    fc1_lin[i].w[0] = fc1_lin[i].w[0]
+                    fc1_lin[i].b[0] = fc1_lin[i].b[0]
+                    fc2_lin[i].w[0] = fc2_lin[i].w[0]
+                    fc2_lin[i].b[0] = fc2_lin[i].b[0]
+                    residual[0] = residual[0]
 
                     input_to_layer = hidden_states
                 else:
@@ -928,8 +929,16 @@ fn main() raises:
                     results = xyz2_graph.execute(inputs_to_tm)
                     hidden_states = results.get[DType.float32]("output0")
                     
-                    print(attn_output_r.shape(), ln_out.shape(), outproj_lin[i].w.shape(), outproj_lin[i].b.shape(),
-                          fc1_lin[i].w.shape(), fc1_lin[i].b.shape(), fc2_lin[i].w.shape(), fc2_lin[i].b.shape(), residual.shape())
+
+                    attn_output_r[0] = attn_output_r[0]
+                    ln_out[0] = ln_out[0]
+                    outproj_lin[i].w[0] = outproj_lin[i].w[0]
+                    outproj_lin[i].b[0] = outproj_lin[i].b[0]
+                    fc1_lin[i].w[0] = fc1_lin[i].w[0]
+                    fc1_lin[i].b[0] = fc1_lin[i].b[0]
+                    fc2_lin[i].w[0] = fc2_lin[i].w[0]
+                    fc2_lin[i].b[0] = fc2_lin[i].b[0]
+                    residual[0] = residual[0]
                     
                     input_to_layer = hidden_states
 
@@ -953,9 +962,15 @@ fn main() raises:
             results = head_model.execute(inputs_to_tm4)
             lm_lin = results.get[DType.float32]("output0")
 
-            print(new.shape(), lm_head_ln.w.shape(), lm_head_ln.b.shape(), lm_head_lin.w.shape(), lm_head_lin.b.shape())
 
+            new[0] = new[0]
+            lm_head_ln.w[0] = lm_head_ln.w[0]
+            lm_head_ln.b[0] = lm_head_ln.b[0]
+            lm_head_lin.w[0] = lm_head_lin.w[0]
+            lm_head_lin.b[0] = lm_head_lin.b[0]
+           
             here = mypython.argmax_index(tensor_to_numpy(lm_lin))
+            
             values.append(here[0][0])
 
             if here[0][0] == 50256:
